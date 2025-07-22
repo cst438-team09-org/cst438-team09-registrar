@@ -77,7 +77,7 @@ public class StudentScheduleController {
         enrollmentRepository.save(enrollment);
 
         // Return the EnrollmentDTO with the id of the Enrollment and other fields
-        return new EnrollmentDTO(
+        EnrollmentDTO result =  new EnrollmentDTO(
                 enrollment.getEnrollmentId(), // enrollmentId
                 null,               // grade (initially null)
                 student.getId(),    // studentId
@@ -96,8 +96,8 @@ public class StudentScheduleController {
         );
 
         // create and save an EnrollmentEntity
-
-
+        gradebook.sendMessage("enrollCourse", result);
+        return result;
     }
 
     // student drops a course
@@ -127,6 +127,7 @@ public class StudentScheduleController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Drop deadline has passed");
         }
         // Delete the enrollment
+        gradebook.sendMessage("dropCourse", enrollment);
         enrollmentRepository.delete(enrollment);
     }
 

@@ -1,5 +1,6 @@
 package com.cst438.domain;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 
 @Entity
@@ -10,6 +11,7 @@ public class Enrollment {
     String grade;
 
     @ManyToOne
+    @JsonBackReference
     @JoinColumn(name="section_no", nullable=false)
     private Section section;
 

@@ -1,5 +1,6 @@
 package com.cst438.domain;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 
 import java.util.List;
@@ -15,6 +16,7 @@ public class Course {
 
     // create @OneToMany relationships with Section.
     @OneToMany(mappedBy="course")
+    @JsonManagedReference
     private List<Section> sections;
 
     public String getCourseId() {

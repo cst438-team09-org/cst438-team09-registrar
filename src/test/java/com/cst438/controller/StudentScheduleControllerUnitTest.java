@@ -3,9 +3,13 @@ package com.cst438.controller;
 import com.cst438.domain.*;
 import com.cst438.dto.*;
 import com.cst438.service.GradebookServiceProxy;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.EntityExchangeResult;
@@ -16,8 +20,7 @@ import java.util.Random;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class StudentScheduleControllerUnitTest {
@@ -30,6 +33,9 @@ public class StudentScheduleControllerUnitTest {
     private SectionRepository sectionRepository;
     @Autowired
     private EnrollmentRepository enrollmentRepository;
+
+    @MockitoBean
+    private RabbitTemplate rabbitTemplate;
 
     @Test
     public void addCourse() throws Exception {

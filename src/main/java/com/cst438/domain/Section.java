@@ -1,5 +1,7 @@
 package com.cst438.domain;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import java.util.List;
 
@@ -11,6 +13,7 @@ public class Section {
     private int sectionNo;  // unique id assigned by database.
     private int sectionId;
     @ManyToOne
+    @JsonBackReference
     @JoinColumn(name="course_id", nullable=false)
     private Course course;
     private String building;
@@ -22,6 +25,7 @@ public class Section {
     private Term term;
 
     @OneToMany(mappedBy="section")
+    @JsonManagedReference
     List<Enrollment> enrollments;
 
     public int getSectionNo() {

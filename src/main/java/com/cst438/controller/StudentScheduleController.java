@@ -96,7 +96,7 @@ public class StudentScheduleController {
         );
 
         // create and save an EnrollmentEntity
-        gradebook.sendMessage("enrollCourse", result);
+        gradebook.sendMessage("addEnrollment", result);
         return result;
     }
 
@@ -127,7 +127,7 @@ public class StudentScheduleController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Drop deadline has passed");
         }
         // Delete the enrollment
-        gradebook.sendMessage("dropCourse", enrollment);
+        gradebook.sendMessage("deleteEnrollment", enrollment);
         enrollmentRepository.delete(enrollment);
     }
 

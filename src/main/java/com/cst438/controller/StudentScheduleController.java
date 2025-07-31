@@ -127,7 +127,7 @@ public class StudentScheduleController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Drop deadline has passed");
         }
         // Delete the enrollment
-        gradebook.sendMessage("deleteEnrollment", enrollment);
+        gradebook.sendMessage("deleteEnrollment", enrollment.getEnrollmentId());
         enrollmentRepository.delete(enrollment);
     }
 

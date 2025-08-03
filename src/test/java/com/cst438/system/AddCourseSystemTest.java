@@ -48,16 +48,17 @@ public class AddCourseSystemTest {
         driver.quit();
     }
 
+
+    //
     @Test
     public void testStudentAddCourse() throws InterruptedException {
-        // navigate to "home" on the nav bar and login
+        // Login as user sama
         driver.findElement(By.id("email")).sendKeys("sama@csumb.edu");
         driver.findElement(By.id("password")).sendKeys("sam2025");
         driver.findElement(By.id("loginButton")).click();
-
-        // dismiss the alert message
-
         Thread.sleep(DELAY);
+
+        //sama views his schedule for Fall 2025
         driver.findElement(By.id("scheduleLink")).click();
         Thread.sleep(DELAY);
         driver.findElement(By.id("year")).sendKeys("2025");
@@ -68,26 +69,27 @@ public class AddCourseSystemTest {
         //find out what column number contains the courseId
         WebElement courseIdHeader = driver.findElement(By.xpath("//thead/tr/th[text()='Course ID']"));
         assertNotNull(courseIdHeader);
+        //The position of the courseId column is determined by how many columns come before it.
         List<WebElement> prevSiblings = courseIdHeader.findElements(By.xpath("./preceding-sibling::*"));
         int courseIdCol = prevSiblings.size() + 1;
+        //Find the table cell in the course Id column for course CST599
         WebElement courseId = driver.findElement(By.xpath("//tbody/tr/td[position()="+courseIdCol+" and text()='cst599']"));
         assertNotNull(courseId);
-
+        //The parent of that table cell is the entire row...
         WebElement courseRow = courseId.findElement(By.xpath(".."));
         assertNotNull(courseRow);
-
+        //... which contains the button to drop that course.
         WebElement dropButton = courseRow.findElement(By.xpath(".//button[text()='Drop']"));
         assertNotNull(dropButton);
-
+        //sama drops the course
         dropButton.click();
-
-
         driver.findElement(By.xpath("//button[@label='Yes']")).click();
         Thread.sleep(DELAY);
+        //After dropping the class, make sure that CST599 no longer shows up in sama's schedule
         assertThrows(NoSuchElementException.class, ()->{
            driver.findElement(By.xpath("//tbody/tr/td[position()="+courseIdCol+" and text()='cst599']"));
         });
-
+        //sama returns to course enrollment page.
         driver.findElement(By.id("addCourseLink")).click();
         Thread.sleep(DELAY);
 
@@ -106,8 +108,9 @@ public class AddCourseSystemTest {
         assertNotNull(addButton);
 
         addButton.click();
-
         driver.findElement(By.xpath("//button[@label='Yes']")).click();
+
+        //sama navigates to his transcript
         driver.findElement(By.id("transcriptLink")).click();
         Thread.sleep(DELAY);
 
@@ -128,13 +131,11 @@ public class AddCourseSystemTest {
         courseRow = courseId.findElement(By.xpath(".."));
         assertNotNull(courseRow);
 
+        //Within the transcript row for CST599, find the cell under the Grade column
         WebElement grade = courseRow.findElement(By.xpath("./td["+gradeCol+"]"));
-        assertNotNull(addButton);
-
+        assertNotNull(grade);
+        //Make sure grade is currently empty
         assertEquals("—", grade.getText());
-
-
-
     }
 
 }

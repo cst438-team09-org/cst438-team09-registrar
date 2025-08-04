@@ -10,15 +10,31 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
 import java.util.List;
+import java.util.Properties;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class AddCourseSystemTest {
-    static final String CHROME_DRIVER_FILE_LOCATION = "/Users/Tekprincezz415/Downloads/chromedriver-mac-arm64/chromedriver";
-    static final String URL = "http://localhost:5173";   // react dev server
+    private static final Properties localConfig = new Properties();
+
+    static {
+        try (InputStream input = AddCourseSystemTest.class.getClassLoader()
+                .getResourceAsStream("test.properties")) {
+            if (input == null) {
+                throw new RuntimeException("test.properties not found. Copy test.properties.example to test.properties and configure for your system.");
+            }
+            localConfig.load(input);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not load test.properties", e);
+        }
+    }
+
+    static final String URL = localConfig.getProperty("test.url");
 
     static final int DELAY = 2000;
     WebDriver driver;
@@ -29,12 +45,13 @@ public class AddCourseSystemTest {
 
     @BeforeEach
     public void setUpDriver() throws Exception {
+        String driverPath = localConfig.getProperty("chrome.driver.path");
+        String binaryPath = localConfig.getProperty("chrome.binary.path");
 
-        // set properties required by Chrome Driver
-        System.setProperty(
-                "webdriver.chrome.driver", CHROME_DRIVER_FILE_LOCATION);
+        System.setProperty("webdriver.chrome.driver", driverPath);
         ChromeOptions ops = new ChromeOptions();
         ops.addArguments("--remote-allow-origins=*");
+        ops.setBinary(binaryPath);
 
         // start the driver
         driver = new ChromeDriver(ops);

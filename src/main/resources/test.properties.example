@@ -1,0 +1,4 @@
+# Copy this file to test.properties and update paths for your system
+chrome.driver.path=/path/to/your/chromedriver
+chrome.binary.path=/path/to/your/chrome/or/chromium
+test.url=http://localhost:5173

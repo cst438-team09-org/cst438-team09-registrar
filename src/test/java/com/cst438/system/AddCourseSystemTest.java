@@ -7,31 +7,56 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
+import java.util.List;
+import java.util.Properties;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class StudentViewAssignmentGradeSystemTest {
-    static final String CHROME_DRIVER_FILE_LOCATION = "/Users/mayraleon/Downloads/chromedriver-mac-arm64-3/chromedriver";
-    static final String URL = "http://localhost:5173";   // react dev server
+public class AddCourseSystemTest {
+    private static final Properties localConfig = new Properties();
 
+    static {
+        try (InputStream input = AddCourseSystemTest.class.getClassLoader()
+                .getResourceAsStream("test.properties")) {
+            if (input == null) {
+                throw new RuntimeException("test.properties not found. Copy test.properties.example to test.properties and configure for your system.");
+            }
+            localConfig.load(input);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not load test.properties", e);
+        }
+    }
+
+    static final String URL = localConfig.getProperty("test.url");
+
+    static final int DELAY = 2000;
     WebDriver driver;
+
+    Wait<WebDriver> wait;
+
     Random random = new Random();
-    WebDriverWait wait;
 
     @BeforeEach
-    public void setUpDriver() {
-        // Set properties required by Chrome Driver
-        System.setProperty("webdriver.chrome.driver", CHROME_DRIVER_FILE_LOCATION);
+    public void setUpDriver() throws Exception {
+        String driverPath = localConfig.getProperty("chrome.driver.path");
+        String binaryPath = localConfig.getProperty("chrome.binary.path");
+
+        System.setProperty("webdriver.chrome.driver", driverPath);
         ChromeOptions ops = new ChromeOptions();
         ops.addArguments("--remote-allow-origins=*");
+        ops.setBinary(binaryPath);
 
-        // Start the driver
+        // start the driver
         driver = new ChromeDriver(ops);
-        wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(2));
+        wait = new WebDriverWait(driver, Duration.ofSeconds(2));
         driver.get(URL);
     }
 
@@ -40,52 +65,94 @@ public class StudentViewAssignmentGradeSystemTest {
         driver.quit();
     }
 
+
+    //
     @Test
-    public void testInstructorAddAssignmentAndStudentView() {
-        // Instructor login
-        driver.findElement(By.id("email")).sendKeys("ted@csumb.edu");
-        driver.findElement(By.id("password")).sendKeys("ted2025"); // Replace with actual password
+    public void testStudentAddCourse() throws InterruptedException {
+        // Login as user sama
+        driver.findElement(By.id("email")).sendKeys("sama@csumb.edu");
+        driver.findElement(By.id("password")).sendKeys("sam2025");
         driver.findElement(By.id("loginButton")).click();
+        Thread.sleep(DELAY);
 
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-        WebElement yearElement = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("year")));
-
-        // Enter year and semester to view sections
+        //sama views his schedule for Fall 2025
+        driver.findElement(By.id("scheduleLink")).click();
+        Thread.sleep(DELAY);
         driver.findElement(By.id("year")).sendKeys("2025");
         driver.findElement(By.id("semester")).sendKeys("Fall");
         driver.findElement(By.id("selectTermButton")).click();
+        Thread.sleep(DELAY);
 
-        // Select view assignments for section CST599
-        driver.findElement(By.xpath("//tr[td[text()='CST599']]/td/a[text()='Assignments']")).click();
-        // Generate a random assignment title
-        String assignmentTitle = "assignment" + random.nextInt(100000);
-        driver.findElement(By.id("assignmentTitle")).sendKeys(assignmentTitle);
-        driver.findElement(By.id("dueDate")).sendKeys("2025-12-01");
-        driver.findElement(By.id("saveAssignmentButton")).click();
+        //find out what column number contains the courseId
+        WebElement courseIdHeader = driver.findElement(By.xpath("//thead/tr/th[text()='Course ID']"));
+        assertNotNull(courseIdHeader);
+        //The position of the courseId column is determined by how many columns come before it.
+        List<WebElement> prevSiblings = courseIdHeader.findElements(By.xpath("./preceding-sibling::*"));
+        int courseIdCol = prevSiblings.size() + 1;
+        //Find the table cell in the course Id column for course CST599
+        WebElement courseId = driver.findElement(By.xpath("//tbody/tr/td[position()="+courseIdCol+" and text()='cst599']"));
+        assertNotNull(courseId);
+        //The parent of that table cell is the entire row...
+        WebElement courseRow = courseId.findElement(By.xpath(".."));
+        assertNotNull(courseRow);
+        //... which contains the button to drop that course.
+        WebElement dropButton = courseRow.findElement(By.xpath(".//button[text()='Drop']"));
+        assertNotNull(dropButton);
+        //sama drops the course
+        dropButton.click();
+        driver.findElement(By.xpath("//button[@label='Yes']")).click();
+        Thread.sleep(DELAY);
+        //After dropping the class, make sure that CST599 no longer shows up in sama's schedule
+        assertThrows(NoSuchElementException.class, ()->{
+           driver.findElement(By.xpath("//tbody/tr/td[position()="+courseIdCol+" and text()='cst599']"));
+        });
+        //sama returns to course enrollment page.
+        driver.findElement(By.id("addCourseLink")).click();
+        Thread.sleep(DELAY);
 
-        // Handle the confirmation alert
-        wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.xpath("//div[@class='react-confirm-alert-button-group']/button[@label='Yes']")));
-        WebElement yesButton = driver.findElement(
-                By.xpath("//div[@class='react-confirm-alert-button-group']/button[@label='Yes']"));
-        yesButton.click();
+        //find out what column number contains the courseId
+        courseIdHeader = driver.findElement(By.xpath("//thead/tr/th[text()='course Id']"));
+        assertNotNull(courseIdHeader);
+        prevSiblings = courseIdHeader.findElements(By.xpath("./preceding-sibling::*"));
+        int courseIdColumn = prevSiblings.size() + 1;
+        courseId = driver.findElement(By.xpath("//tbody/tr/td[position()="+courseIdColumn+" and text()='cst599']"));
+        assertNotNull(courseId);
 
-        // Verify that the new assignment shows on the assignment page
-        assertTrue(driver.getPageSource().contains(assignmentTitle), "Assignment title not found on the page.");
+        courseRow = courseId.findElement(By.xpath(".."));
+        assertNotNull(courseRow);
 
-        // Logout as instructor
-        driver.findElement(By.id("logoutButton")).click();
+        WebElement addButton = courseRow.findElement(By.xpath(".//button[text()='Add']"));
+        assertNotNull(addButton);
 
-        // Student login
-        driver.findElement(By.id("email")).sendKeys("samb@csumb.edu");
-        driver.findElement(By.id("password")).sendKeys("sam2025");
-        driver.findElement(By.id("loginButton")).click();
+        addButton.click();
+        driver.findElement(By.xpath("//button[@label='Yes']")).click();
 
-        // Navigate to view assignments
-        driver.findElement(By.id("assignmentsLink")).click();
+        //sama navigates to his transcript
+        driver.findElement(By.id("transcriptLink")).click();
+        Thread.sleep(DELAY);
 
-        // Verify that the new assignment in course CST599 appears and the assignment score is blank
-        assertTrue(driver.getPageSource().contains(assignmentTitle), "Assignment title not found in student's assignments.");
-        assertTrue(driver.getPageSource().contains("—"), "Assignment score is not blank.");
+        //find out what column number contains the grade
+        WebElement gradeHeader = driver.findElement(By.xpath("//thead/tr/th[text()='Grade']"));
+        assertNotNull(gradeHeader);
+        prevSiblings = gradeHeader.findElements(By.xpath("./preceding-sibling::*"));
+        int gradeCol = prevSiblings.size() + 1;
+
+        //find out what column number contains the courseId
+        courseIdHeader = driver.findElement(By.xpath("//thead/tr/th[text()='CourseId']"));
+        assertNotNull(courseIdHeader);
+        prevSiblings = courseIdHeader.findElements(By.xpath("./preceding-sibling::*"));
+        courseIdColumn = prevSiblings.size() + 1;
+        courseId = driver.findElement(By.xpath("//tbody/tr/td[position()="+courseIdColumn+" and text()='cst599']"));
+        assertNotNull(courseId);
+
+        courseRow = courseId.findElement(By.xpath(".."));
+        assertNotNull(courseRow);
+
+        //Within the transcript row for CST599, find the cell under the Grade column
+        WebElement grade = courseRow.findElement(By.xpath("./td["+gradeCol+"]"));
+        assertNotNull(grade);
+        //Make sure grade is currently empty
+        assertEquals("—", grade.getText());
     }
+
 }

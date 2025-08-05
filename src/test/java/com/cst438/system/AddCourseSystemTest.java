@@ -9,14 +9,30 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
+import java.util.Properties;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class StudentViewAssignmentGradeSystemTest {
-    static final String CHROME_DRIVER_FILE_LOCATION = "/Users/mayraleon/Downloads/chromedriver-mac-arm64-3/chromedriver";
-    static final String URL = "http://localhost:5173";   // react dev server
+    private static final Properties localConfig = new Properties();
+
+    static {
+        try (InputStream input = StudentViewAssignmentGradeSystemTest.class.getClassLoader()
+                .getResourceAsStream("test.properties")) {
+            if (input == null) {
+                throw new RuntimeException("test.properties not found. Copy test.properties to test.properties and configure for your system.");
+            }
+            localConfig.load(input);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not load test.properties", e);
+        }
+    }
+
+    static final String URL = localConfig.getProperty("test.url");
 
     WebDriver driver;
     Random random = new Random();
@@ -24,10 +40,13 @@ public class StudentViewAssignmentGradeSystemTest {
 
     @BeforeEach
     public void setUpDriver() {
-        // Set properties required by Chrome Driver
-        System.setProperty("webdriver.chrome.driver", CHROME_DRIVER_FILE_LOCATION);
+        String driverPath = localConfig.getProperty("chrome.driver.path");
+        String binaryPath = localConfig.getProperty("chrome.binary.path");
+
+        System.setProperty("webdriver.chrome.driver", driverPath);
         ChromeOptions ops = new ChromeOptions();
         ops.addArguments("--remote-allow-origins=*");
+        ops.setBinary(binaryPath);
 
         // Start the driver
         driver = new ChromeDriver(ops);
@@ -41,51 +60,73 @@ public class StudentViewAssignmentGradeSystemTest {
     }
 
     @Test
-    public void testInstructorAddAssignmentAndStudentView() {
+    public void testInstructorAddAssignmentAndStudentView() throws InterruptedException {
         // Instructor login
-        driver.findElement(By.id("email")).sendKeys("ted@csumb.edu");
-        driver.findElement(By.id("password")).sendKeys("ted2025"); // Replace with actual password
-        driver.findElement(By.id("loginButton")).click();
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("email"))).sendKeys("ted@csumb.edu");
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("password"))).sendKeys("ted2025"); // Replace with actual password
+        wait.until(ExpectedConditions.elementToBeClickable(By.id("loginButton"))).click();
 
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-        WebElement yearElement = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("year")));
+        // Wait until login completes - assume some element that signals login success or page change
+        // (You had wait for loginButton again, but it might still be there.
+        // Better to wait for an element unique to the post-login page)
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("year")));
 
         // Enter year and semester to view sections
-        driver.findElement(By.id("year")).sendKeys("2025");
-        driver.findElement(By.id("semester")).sendKeys("Fall");
-        driver.findElement(By.id("selectTermButton")).click();
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("year"))).sendKeys("2025");
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("semester"))).sendKeys("Fall");
+        wait.until(ExpectedConditions.elementToBeClickable(By.id("selectTermButton"))).click();
 
-        // Select view assignments for section CST599
-        driver.findElement(By.xpath("//tr[td[text()='CST599']]/td/a[text()='Assignments']")).click();
+        // Wait until term selection is processed - for example wait for assignments link or section list to appear
+        // Here we assume the assignment link appears:
+        // Note: adjust this if your app uses a different element to indicate readiness.
+        String course = "cst599";
+        String xpath = String.format("//tr[td[text()='%s']]/td/a[text()='Assignments']", course);
+        wait.until(ExpectedConditions.elementToBeClickable(By.xpath(xpath))).click();
+
+        // Wait for Add Assignment button and click it
+        wait.until(ExpectedConditions.elementToBeClickable(By.id("addAssignmentButton"))).click();
+
+        // Wait for dialog input fields to be visible
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.name("title")));
+
         // Generate a random assignment title
         String assignmentTitle = "assignment" + random.nextInt(100000);
-        driver.findElement(By.id("assignmentTitle")).sendKeys(assignmentTitle);
-        driver.findElement(By.id("dueDate")).sendKeys("2025-12-01");
-        driver.findElement(By.id("saveAssignmentButton")).click();
 
-        // Handle the confirmation alert
-        wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.xpath("//div[@class='react-confirm-alert-button-group']/button[@label='Yes']")));
-        WebElement yesButton = driver.findElement(
-                By.xpath("//div[@class='react-confirm-alert-button-group']/button[@label='Yes']"));
-        yesButton.click();
+        // Fill in the assignment title
+        WebElement titleInput = driver.findElement(By.name("title"));
+        titleInput.clear();
+        titleInput.sendKeys(assignmentTitle);
 
-        // Verify that the new assignment shows on the assignment page
+        // Fill in the due date (YYYY-MM-DD format)
+        WebElement dueDateInput = driver.findElement(By.name("dueDate"));
+        dueDateInput.clear();
+        dueDateInput.sendKeys("12/01/2025");
+
+        // Click Save button inside the dialog
+        driver.findElement(By.xpath("//dialog//button[text()='Save']")).click();
+
+        // Wait until dialog disappears or page updates with new assignment title
+        wait.until(ExpectedConditions.invisibilityOfElementLocated(By.xpath("//dialog")));
+
+        // Verify new assignment appears on page
+        wait.until(ExpectedConditions.textToBePresentInElementLocated(By.tagName("body"), assignmentTitle));
         assertTrue(driver.getPageSource().contains(assignmentTitle), "Assignment title not found on the page.");
 
         // Logout as instructor
-        driver.findElement(By.id("logoutButton")).click();
+        wait.until(ExpectedConditions.elementToBeClickable(By.id("logoutLink"))).click();
 
         // Student login
-        driver.findElement(By.id("email")).sendKeys("samb@csumb.edu");
-        driver.findElement(By.id("password")).sendKeys("sam2025");
-        driver.findElement(By.id("loginButton")).click();
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("email"))).sendKeys("samb@csumb.edu");
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("password"))).sendKeys("sam2025");
+        wait.until(ExpectedConditions.elementToBeClickable(By.id("loginButton"))).click();
 
         // Navigate to view assignments
-        driver.findElement(By.id("assignmentsLink")).click();
+        wait.until(ExpectedConditions.elementToBeClickable(By.id("viewAssignmentsLink"))).click();
 
         // Verify that the new assignment in course CST599 appears and the assignment score is blank
+        wait.until(ExpectedConditions.textToBePresentInElementLocated(By.tagName("body"), assignmentTitle));
         assertTrue(driver.getPageSource().contains(assignmentTitle), "Assignment title not found in student's assignments.");
         assertTrue(driver.getPageSource().contains("—"), "Assignment score is not blank.");
     }
+
 }

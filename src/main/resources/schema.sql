@@ -51,4 +51,23 @@ create table enrollment (
     foreign key(user_id) references user_table(id) on delete cascade
 );
 
+create sequence assignment_seq START WITH 6000;
 
+create table assignment (
+                            assignment_id int  default next value for assignment_seq primary key,
+                            section_no int not null,
+                            title varchar(250) not null,
+                            due_date Date,
+                            foreign key (section_no) references section(section_no)
+);
+
+create sequence grade_seq START WITH 12000;
+
+create table grade (
+                       grade_id int default next value for grade_seq primary key,
+                       enrollment_id int not null,
+                       assignment_id int not null,
+                       score int check (score between 0 and 100),
+                       foreign key(enrollment_id) references enrollment(enrollment_id) on delete cascade,
+                       foreign key(assignment_id) references assignment(assignment_id) on delete cascade
+);

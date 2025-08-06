@@ -9,6 +9,7 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,8 +27,7 @@ public class AddCourseSystemTest {
         try (InputStream input = AddCourseSystemTest.class.getClassLoader()
                 .getResourceAsStream("test.properties")) {
             if (input == null) {
-                throw new RuntimeException("test.properties not found. Copy test.properties.example to test.properties and configure for your system.");
-
+                throw new RuntimeException("test.properties not found. Copy test.properties to test.properties and configure for your system.");
             }
             localConfig.load(input);
         } catch (IOException e) {
@@ -37,36 +37,63 @@ public class AddCourseSystemTest {
 
     static final String URL = localConfig.getProperty("test.url");
 
-    static final int DELAY = 2000;
+    // back-end test endpoints for both services
+    private static final String REGISTRAR_BACKEND_URL = "http://localhost:8080";
+    private static final String GRADEBOOK_BACKEND_URL = "http://localhost:8081";
+    private static final int DELAY = 1000; // milliseconds
+
+    private final RestTemplate restTemplate = new RestTemplate();
+
     WebDriver driver;
-
-    Wait<WebDriver> wait;
-
     Random random = new Random();
+    WebDriverWait wait;
 
     @BeforeEach
-    public void setUpDriver() throws Exception {
+    public void beforeEach() {
+        // seed the test data on both services
+        try {
+            restTemplate.postForEntity(REGISTRAR_BACKEND_URL + "/test/seed", null, Void.class);
+        } catch (Exception e) {
+            System.out.println("Failed to seed registrar service: " + e.getMessage());
+        }
 
-        String driverPath = localConfig.getProperty("chrome.driver.path");
-        String binaryPath = localConfig.getProperty("chrome.binary.path");
+        try {
+            restTemplate.postForEntity(GRADEBOOK_BACKEND_URL + "/test/seed", null, Void.class);
+        } catch (Exception e) {
+            System.out.println("Failed to seed gradebook service: " + e.getMessage());
+        }
 
-        System.setProperty("webdriver.chrome.driver", driverPath);
+        // start ChromeDriver and navigate to the UI
+        System.setProperty("webdriver.chrome.driver", localConfig.getProperty("chrome.driver.path"));
         ChromeOptions ops = new ChromeOptions();
         ops.addArguments("--remote-allow-origins=*");
-        ops.setBinary(binaryPath);
+//        ops.addArguments("--headless=new");
+        ops.setBinary(localConfig.getProperty("chrome.binary.path"));
 
-        // start the driver
         driver = new ChromeDriver(ops);
         driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(2));
-        wait = new WebDriverWait(driver, Duration.ofSeconds(2));
+        wait = new WebDriverWait(driver, Duration.ofSeconds(10));
         driver.get(URL);
     }
 
     @AfterEach
-    public void quit() {
-        driver.quit();
-    }
+    public void afterEach() {
+        // reset the test data on both services
+        try {
+            restTemplate.postForEntity(REGISTRAR_BACKEND_URL + "/test/reset", null, Void.class);
+        } catch (Exception e) {
+            System.out.println("Failed to reset registrar service: " + e.getMessage());
+        }
 
+        try {
+            restTemplate.postForEntity(GRADEBOOK_BACKEND_URL + "/test/reset", null, Void.class);
+        } catch (Exception e) {
+            System.out.println("Failed to reset gradebook service: " + e.getMessage());
+        }
+
+        // tear down browser
+        if (driver != null) driver.quit();
+    }
 
     //
     @Test

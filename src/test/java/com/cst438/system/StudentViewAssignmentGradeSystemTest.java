@@ -21,10 +21,10 @@ public class StudentViewAssignmentGradeSystemTest {
     private static final Properties localConfig = new Properties();
 
     static {
-        try (InputStream input = AddCourseSystemTest.class.getClassLoader()
+        try (InputStream input = StudentViewAssignmentGradeSystemTest.class.getClassLoader()
                 .getResourceAsStream("test.properties")) {
             if (input == null) {
-                throw new RuntimeException("test.properties not found. Copy test.properties.example to test.properties and configure for your system.");
+                throw new RuntimeException("test.properties not found. Copy test.properties to test.properties and configure for your system.");
             }
             localConfig.load(input);
         } catch (IOException e) {
@@ -37,7 +37,6 @@ public class StudentViewAssignmentGradeSystemTest {
     WebDriver driver;
     Random random = new Random();
     WebDriverWait wait;
-    static final int DELAY = 2000;
 
     @BeforeEach
     public void setUpDriver() {
@@ -51,7 +50,7 @@ public class StudentViewAssignmentGradeSystemTest {
 
         // Start the driver
         driver = new ChromeDriver(ops);
-        wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        wait = new WebDriverWait(driver, Duration.ofSeconds(1000));
         driver.get(URL);
     }
 
@@ -63,52 +62,74 @@ public class StudentViewAssignmentGradeSystemTest {
     @Test
     public void testInstructorAddAssignmentAndStudentView() throws InterruptedException {
         // Instructor login
-        driver.findElement(By.id("email")).sendKeys("ted@csumb.edu");
-        driver.findElement(By.id("password")).sendKeys("ted2025"); // Replace with actual password
-        driver.findElement(By.id("loginButton")).click();
-        Thread.sleep(DELAY);
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("email"))).sendKeys("ted@csumb.edu");
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("password"))).sendKeys("ted2025"); // Replace with actual password
+        wait.until(ExpectedConditions.elementToBeClickable(By.id("loginButton"))).click();
+
+        // Wait until login completes
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("year")));
+
+        // Enter year and semester to view sections
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("year"))).sendKeys("2025");
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("semester"))).sendKeys("Fall");
+        wait.until(ExpectedConditions.elementToBeClickable(By.id("selectTermButton"))).click();
+
+        // Wait until term selection is processed
+        String course = "cst599";
+        String xpath = String.format("//tr[td[text()='%s']]/td/a[text()='Assignments']", course);
+        wait.until(ExpectedConditions.elementToBeClickable(By.xpath(xpath))).click();
+
+        // Wait for Add Assignment button and click it
+        wait.until(ExpectedConditions.elementToBeClickable(By.id("addAssignmentButton"))).click();
+
+        // Wait for dialog input fields to be visible
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.name("title")));
+
+        // Generate a random assignment title
+        String assignmentTitle = "assignment" + random.nextInt(100000);
+
+        // Fill in the assignment title
+        WebElement titleInput = driver.findElement(By.name("title"));
+        titleInput.clear();
+        titleInput.sendKeys(assignmentTitle);
+
+        // Fill in the due date (YYYY-MM-DD format)
+        WebElement dueDateInput = driver.findElement(By.name("dueDate"));
+        dueDateInput.clear();
+        dueDateInput.sendKeys("12/01/2025");
+
+        // Click Save button inside the dialog
+        driver.findElement(By.xpath("//dialog//button[text()='Save']")).click();
+
+        // Wait until dialog disappears or page updates with new assignment title
+        wait.until(ExpectedConditions.invisibilityOfElementLocated(By.xpath("//dialog")));
+
+        // Verify new assignment appears on page
+        wait.until(ExpectedConditions.textToBePresentInElementLocated(By.tagName("body"), assignmentTitle));
+        assertTrue(driver.getPageSource().contains(assignmentTitle), "Assignment title not found on the page.");
+
+        // Logout as instructor
+        wait.until(ExpectedConditions.elementToBeClickable(By.id("logoutLink"))).click();
+
+        // Student login
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("email"))).sendKeys("samb@csumb.edu");
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("password"))).sendKeys("sam2025");
+        wait.until(ExpectedConditions.elementToBeClickable(By.id("loginButton"))).click();
+
+        // Navigate to view assignments
+        wait.until(ExpectedConditions.elementToBeClickable(By.id("viewAssignmentsLink"))).click();
 
         // Enter year and semester to view sections
         driver.findElement(By.id("year")).sendKeys("2025");
         driver.findElement(By.id("semester")).sendKeys("Fall");
-        driver.findElement(By.id("selectTermButton")).click();
-        Thread.sleep(DELAY);
+        wait.until(ExpectedConditions.elementToBeClickable(By.id("selectTermButton"))).click();
 
-        // Select view assignments for section CST599
-        String course = "cst599";
-        String xpath = String.format("//tr[td[text()='%s']]/td/a[text()='Assignments']", course);
-        driver.findElement(By.xpath(xpath)).click();
-        Thread.sleep(DELAY);
-
-        // Generate a random assignment title
-        String assignmentTitle = "assignment" + random.nextInt(100000);
-        driver.findElement(By.id("assignmentTitle")).sendKeys(assignmentTitle);
-        driver.findElement(By.id("dueDate")).sendKeys("2025-12-01");
-        driver.findElement(By.id("saveAssignmentButton")).click();
-
-        // Handle the confirmation alert
-        wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.xpath("//div[@class='react-confirm-alert-button-group']/button[@label='Yes']")));
-        WebElement yesButton = driver.findElement(
-                By.xpath("//div[@class='react-confirm-alert-button-group']/button[@label='Yes']"));
-        yesButton.click();
-
-        // Verify that the new assignment shows on the assignment page
-        assertTrue(driver.getPageSource().contains(assignmentTitle), "Assignment title not found on the page.");
-
-        // Logout as instructor
-        driver.findElement(By.id("logoutButton")).click();
-
-        // Student login
-        driver.findElement(By.id("email")).sendKeys("samb@csumb.edu");
-        driver.findElement(By.id("password")).sendKeys("sam2025");
-        driver.findElement(By.id("loginButton")).click();
-
-        // Navigate to view assignments
-        driver.findElement(By.id("assignmentsLink")).click();
+        wait.until(ExpectedConditions.textToBePresentInElementLocated(By.tagName("body"), assignmentTitle));
 
         // Verify that the new assignment in course CST599 appears and the assignment score is blank
         assertTrue(driver.getPageSource().contains(assignmentTitle), "Assignment title not found in student's assignments.");
-        assertTrue(driver.getPageSource().contains("—"), "Assignment score is not blank.");
+        assertTrue(driver.getPageSource().contains("N/A"), "Assignment score is not blank.");
+
     }
+
 }

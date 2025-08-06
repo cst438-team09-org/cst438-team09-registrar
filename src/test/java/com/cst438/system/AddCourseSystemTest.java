@@ -27,6 +27,7 @@ public class AddCourseSystemTest {
                 .getResourceAsStream("test.properties")) {
             if (input == null) {
                 throw new RuntimeException("test.properties not found. Copy test.properties.example to test.properties and configure for your system.");
+
             }
             localConfig.load(input);
         } catch (IOException e) {
@@ -45,6 +46,7 @@ public class AddCourseSystemTest {
 
     @BeforeEach
     public void setUpDriver() throws Exception {
+
         String driverPath = localConfig.getProperty("chrome.driver.path");
         String binaryPath = localConfig.getProperty("chrome.binary.path");
 
@@ -68,6 +70,7 @@ public class AddCourseSystemTest {
 
     //
     @Test
+
     public void testStudentAddCourse() throws InterruptedException {
         // Login as user sama
         driver.findElement(By.id("email")).sendKeys("sama@csumb.edu");

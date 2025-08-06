@@ -34,7 +34,7 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @EnableMethodSecurity
 @EnableWebSecurity
 public class SecurityConfiguration {
-    
+
     private final RsaKeyProperties rsaKeys;
 
     private final UserDetailsService userDetailsService;
@@ -62,36 +62,37 @@ public class SecurityConfiguration {
     		HttpSecurity http,
     		HandlerMappingIntrospector introspector) throws Exception {
 
-    	http
-		    .headers(headers ->
-         		    headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))  // h2 console needs this
-			.csrf(AbstractHttpConfigurer::disable)
-			.cors(withDefaults())
-			.authorizeHttpRequests( auth -> auth
-					.requestMatchers(
-							// list of unsecured URLs for h2 console, and for  things needed in assignment 8 for AWS
-							AntPathRequestMatcher.antMatcher("/h2-console/**"),
-							AntPathRequestMatcher.antMatcher("/"),
-							AntPathRequestMatcher.antMatcher("/exit")
-					).permitAll()
-					.anyRequest().authenticated()
-					)
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.decoder(jwtDecoder())))
-			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-			.httpBasic(withDefaults());
-          
+        http
+                .headers(headers ->
+                        headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))  // h2 console needs this
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(withDefaults())
+                .authorizeHttpRequests( auth -> auth
+                        .requestMatchers(
+                                // list of unsecured URLs for h2 console, and for  things needed in assignment 8 for AWS
+                                AntPathRequestMatcher.antMatcher("/h2-console/**"),
+                                AntPathRequestMatcher.antMatcher("/"),
+                                AntPathRequestMatcher.antMatcher("/exit"),
+                                AntPathRequestMatcher.antMatcher("/test/**")
+                        ).permitAll()
+                        .anyRequest().authenticated()
+                )
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.decoder(jwtDecoder())))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .httpBasic(withDefaults());
+
         return http.build();
     }
-    
+
     @Bean
     JwtDecoder jwtDecoder() {
-    	return NimbusJwtDecoder.withPublicKey(rsaKeys.publicKey()).build();
+        return NimbusJwtDecoder.withPublicKey(rsaKeys.publicKey()).build();
     }
-    
+
     @Bean
     JwtEncoder jwtEncoder() {
-    	JWK jwk = new RSAKey.Builder(rsaKeys.publicKey()).privateKey(rsaKeys.privateKey()).build();
-    	JWKSource<SecurityContext> jwks = new ImmutableJWKSet<>(new JWKSet(jwk));
-    	return new NimbusJwtEncoder(jwks);
+        JWK jwk = new RSAKey.Builder(rsaKeys.publicKey()).privateKey(rsaKeys.privateKey()).build();
+        JWKSource<SecurityContext> jwks = new ImmutableJWKSet<>(new JWKSet(jwk));
+        return new NimbusJwtEncoder(jwks);
     }
 }
